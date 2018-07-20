@@ -85,46 +85,56 @@ printFile ::
   FilePath
   -> Chars
   -> IO ()
-printFile =
-  error "todo: Course.FileIO#printFile"
+printFile filename contents =
+   putStrLn ("============ " ++ filename ++ "\n" ++ contents)
 
 -- Given a list of (file name and file contents), print each.
 -- Use @printFile@.
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
+-- printFiles list =
+    -- void (sequence ((\(name, contents) -> printFile name contents) <$> list))
+    -- void (sequence ((uncurry printFile) <$> list))
+    -- void (sequence (<$> (uncurry printFile) list))
 printFiles =
-  error "todo: Course.FileIO#printFiles"
+    void . sequence . (<$>) (uncurry printFile)
 
 -- Given a file name, return (file name and file contents).
 -- Use @readFile@.
 getFile ::
   FilePath
   -> IO (FilePath, Chars)
-getFile =
-  error "todo: Course.FileIO#getFile"
+-- getFile = \filename -> readFile filename >>= \chars -> pure (filename, chars)
+getFile filename = (\chars -> (filename, chars)) <$> readFile filename
 
 -- Given a list of file names, return list of (file name and file contents).
 -- Use @getFile@.
-getFiles ::
-  List FilePath
-  -> IO (List (FilePath, Chars))
+getFiles :: List FilePath -> IO (List (FilePath, Chars))
+-- getFiles Nil = pure Nil
+-- getFiles (h :. t) =
+--   getFile h >>= \pairOfStuff ->
+--     getFiles t >>= \listOfPairOfStuff -> pure (pairOfStuff :. listOfPairOfStuff)
 getFiles =
-  error "todo: Course.FileIO#getFiles"
+    -- \l -> sequence (getFile <$> l)
+    sequence . (<$>) getFile 
 
 -- Given a file name, read it and for each line in that file, read and print contents of each.
 -- Use @getFiles@ and @printFiles@.
-run ::
-  FilePath
-  -> IO ()
+run :: FilePath -> IO ()
 run =
-  error "todo: Course.FileIO#run"
+  \f ->
+    readFile f >>= \chars ->
+      getFiles (lines chars) >>= \listOfPairs -> printFiles listOfPairs
+
 
 -- /Tip:/ use @getArgs@ and @run@
-main ::
-  IO ()
+main :: IO ()
 main =
-  error "todo: Course.FileIO#main"
+  getArgs >>= \args ->
+    case args of
+      Nil -> putStrLn "Missing args"
+      h :. _ -> run h
 
 ----
 
