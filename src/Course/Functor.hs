@@ -18,12 +18,10 @@ import qualified Prelude as P(fmap)
 --
 -- * The law of composition
 --   `∀f g x.(f . g <$> x) ≅ (f <$> (g <$> x))`
-class Functor k where
+class Functor k
   -- Pronounced, eff-map.
-  (<$>) ::
-    (a -> b)
-    -> k a
-    -> k b
+  where
+  (<$>) :: (a -> b) -> k a -> k b
 
 infixl 4 <$>
 
@@ -37,12 +35,8 @@ infixl 4 <$>
 -- >>> (+1) <$> ExactlyOne 2
 -- ExactlyOne 3
 instance Functor ExactlyOne where
-  (<$>) ::
-    (a -> b)
-    -> ExactlyOne a
-    -> ExactlyOne b
-  (<$>) =
-    error "todo: Course.Functor (<$>)#instance ExactlyOne"
+  (<$>) :: (a -> b) -> ExactlyOne a -> ExactlyOne b
+  (<$>) f (ExactlyOne v) = ExactlyOne (f v)
 
 -- | Maps a function on the List functor.
 --
@@ -52,10 +46,7 @@ instance Functor ExactlyOne where
 -- >>> (+1) <$> (1 :. 2 :. 3 :. Nil)
 -- [2,3,4]
 instance Functor List where
-  (<$>) ::
-    (a -> b)
-    -> List a
-    -> List b
+  (<$>) :: (a -> b) -> List a -> List b
   (<$>) = map
 
 -- | Maps a function on the Optional functor.
@@ -67,7 +58,7 @@ instance Functor List where
 -- Full 3
 instance Functor Optional where
   (<$>) :: (a -> b) -> Optional a -> Optional b
-  (<$>) _ Empty    = Empty
+  (<$>) _ Empty = Empty
   (<$>) f (Full v) = Full (f v)
 
 -- | Maps a function on the reader ((->) t) functor.
@@ -75,10 +66,7 @@ instance Functor Optional where
 -- >>> ((+1) <$> (*2)) 8
 -- 17
 instance Functor ((->) t) where
-  (<$>) ::
-    (a -> b)
-    -> ((->) t a)
-    -> ((->) t b)
+  (<$>) :: (a -> b) -> ((->) t a) -> ((->) t b)
   (<$>) = (.)
 
 -- | Anonymous map. Maps a constant value on a functor.
@@ -89,14 +77,11 @@ instance Functor ((->) t) where
 -- prop> \x a b c -> x <$ (a :. b :. c :. Nil) == (x :. x :. x :. Nil)
 --
 -- prop> \x q -> x <$ Full q == Full x
-(<$) ::
-  Functor f =>
-  a
-  -> f b
-  -> f a
-(<$) =
-  -- \a -> \kb -> (\b -> a) <$> kb
-  (<$>) . const
+(<$) :: Functor f => a -> f b -> f a
+-- (<$) = \a -> \kb -> (\b -> a) <$> kb
+-- (<$) a kb = (\b -> a) <$> kb
+-- (<$) a = (<$>) (\b -> a)
+(<$) = (<$>) . const
 
 -- | Anonymous map producing unit value.
 --
@@ -111,12 +96,8 @@ instance Functor ((->) t) where
 --
 -- >>> void (+10) 5
 -- ()
-void ::
-  Functor f =>
-  f a
-  -> f ()
-void fa =
-  () <$ fa
+void :: Functor f => f a -> f ()
+void fa = () <$ fa
 
 -----------------------
 -- SUPPORT LIBRARIES --
