@@ -31,8 +31,8 @@ import qualified Numeric as N
 -- BEGIN Helper functions and data types
 
 -- The custom list type
-data List t =
-  Nil
+data List t
+  = Nil
   | t :. List t
   deriving (Eq, Ord)
 
@@ -43,20 +43,21 @@ instance Show t => Show (List t) where
   show = show . foldRight (:) []
 
 -- The list of integers from zero to infinity.
-infinity ::
-  List Integer
+infinity :: List Integer
 infinity =
-  let inf x = x :. inf (x+1)
-  in inf 0
+  let inf x = x :. inf (x + 1)
+   in inf 0
 
 -- functions over List that you may consider using
 foldRight :: (a -> b -> b) -> b -> List a -> b
-foldRight _ b Nil      = b
+foldRight _ b Nil = b
 foldRight f b (h :. t) = f h (foldRight f b t)
 
 foldLeft :: (b -> a -> b) -> b -> List a -> b
-foldLeft _ b Nil      = b
-foldLeft f b (h :. t) = let b' = f b h in b' `seq` foldLeft f b' t
+foldLeft _ b Nil = b
+foldLeft f b (h :. t) =
+  let b' = f b h
+   in b' `seq` foldLeft f b' t
 
 -- END Helper functions and data types
 
@@ -76,6 +77,13 @@ headOr :: a -> List a -> a
 -- headOr _ (h :. _) = h
 headOr = foldRight const
 
+-- headOr 3 (1 :. 2 :. Nil)
+-- foldRight const 3 (1 :. 2 :. Nil)
+-- const 1 (foldRight const 3 (2 :. Nil))
+-- const 1 (const 2 (foldRight const 3 Nil))
+-- const 1 (const 2 3)
+-- const 1 2
+-- 1
 
 -- | The product of the elements of a list.
 --
@@ -118,7 +126,7 @@ length :: List a -> Int
 --
 -- length = foldLeft (\r -> \_ -> r + 1) 0
 -- length = foldLeft (\r -> const ((+) 1 r)) 0
-length = foldLeft (const . ((+) 1)) 0
+length = foldLeft (const . (+ 1)) 0
 
 -- | Map the given function on each element of the list.
 --
@@ -144,11 +152,13 @@ map f = foldRight ((:.) . f) Nil
 --
 -- prop> \x -> filter (const False) x == Nil
 filter :: (a -> Bool) -> List a -> List a
+-- filter f = foldRight (\e -> bool l (e :. l) (f e)) Nil
 filter _ Nil = Nil
 filter f (h :. t) =
-  if (f h)
-    then (h :. filter f t)
-    else filter f t
+  let t' = filter f t
+   in if f h
+        then h :. t'
+        else t'
 
 -- | Append two lists to a new list.
 --
@@ -227,11 +237,13 @@ flattenAgain = flatMap id
 --
 -- >>> seqOptional (Empty :. map Full infinity)
 -- Empty
-seqOptional ::
-  List (Optional a)
-  -> Optional (List a)
-seqOptional =
-  error "todo: Course.List#seqOptional"
+seqOptional :: List (Optional a) -> Optional (List a)
+seqOptional Nil = Full Nil
+seqOptional (Empty :. _) = Empty
+seqOptional ((Full h) :. t) =
+  case seqOptional t of
+    Empty -> Empty
+    Full t' -> Full (h :. t')
 
 -- | Find the first element in the list matching the predicate.
 --
@@ -250,9 +262,12 @@ seqOptional =
 -- >>> find (const True) infinity
 -- Full 0
 find :: (a -> Bool) -> List a -> Optional a
+-- find p = foldRight (\h t -> bool t (Full h) (p h)) Empty
 find _ Nil = Empty
-find p (h:.t) = if p h then Full h else find p t
--- find p list = foldRight (\h t -> bool t (Full h) (p h)) Empty list
+find p (h :. t) =
+  if p h
+    then Full h
+    else find p t
 
 -- | Determine if the length of the given list is greater than 4.
 --
@@ -267,11 +282,9 @@ find p (h:.t) = if p h then Full h else find p t
 --
 -- >>> lengthGT4 infinity
 -- True
-lengthGT4 ::
-  List a
-  -> Bool
-lengthGT4 =
-  error "todo: Course.List#lengthGT4"
+lengthGT4 :: List a -> Bool
+lengthGT4 (_ :. _ :. _ :. _ :. _) = True
+lengthGT4 _ = False
 
 -- | Reverse a list.
 --
@@ -301,10 +314,7 @@ reverse = foldLeft (flip (:.)) Nil
 --
 -- >>> let (x:.y:.z:.w:._) = produce (*2) 1 in [x,y,z,w]
 -- [1,2,4,8]
-produce ::
-  (a -> a)
-  -> a
-  -> List a
+produce :: (a -> a) -> a -> List a
 produce f x = x :. produce f (f x)
 
 -- | Do anything other than reverse a list.
