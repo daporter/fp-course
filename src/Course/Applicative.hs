@@ -26,14 +26,11 @@ import qualified Prelude as P(fmap, return, (>>=))
 --
 -- * The law of composition
 --   `∀u v w. pure (.) <*> u <*> v <*> w ≅ u <*> (v <*> w)`
-
-class Functor k => Applicative k where
-  pure ::
-    a -> k a
-  (<*>) ::
-    k (a -> b)
-    -> k a
-    -> k b
+class Functor k =>
+      Applicative k
+  where
+  pure :: a -> k a
+  (<*>) :: k (a -> b) -> k a -> k b
 
 infixl 4 <*>
 
@@ -44,17 +41,10 @@ infixl 4 <*>
 -- >>> ExactlyOne (+10) <*> ExactlyOne 8
 -- ExactlyOne 18
 instance Applicative ExactlyOne where
-  pure ::
-    a
-    -> ExactlyOne a
-  pure =
-    error "todo: Course.Applicative pure#instance ExactlyOne"
-  (<*>) :: 
-    ExactlyOne (a -> b)
-    -> ExactlyOne a
-    -> ExactlyOne b
-  (<*>) =
-    error "todo: Course.Applicative (<*>)#instance ExactlyOne"
+  pure :: a -> ExactlyOne a
+  pure = ExactlyOne
+  (<*>) :: ExactlyOne (a -> b) -> ExactlyOne a -> ExactlyOne b
+  (<*>) (ExactlyOne f) (ExactlyOne v) = ExactlyOne (f v)
 
 -- | Insert into a List.
 --
@@ -64,10 +54,10 @@ instance Applicative ExactlyOne where
 -- [2,3,4,2,4,6]
 instance Applicative List where
   pure :: a -> List a
-  pure = \x -> x :. Nil
+  pure x = x :. Nil
   (<*>) :: List (a -> b) -> List a -> List b
-  (<*>) Nil _        = Nil
-  (<*>) (f :. fs) as = map f as ++ (fs <*> as)
+  (<*>) Nil _ = Nil
+  (<*>) (f :. fs) xs = map f xs ++ (fs <*> xs)
   
 -- | Insert into an Optional.
 --
@@ -83,11 +73,12 @@ instance Applicative List where
 -- Empty
 instance Applicative Optional where
   pure :: a -> Optional a
-  pure = error "todo: Course.Applicative pure#instance Optional"
+  pure = Full
   (<*>) :: Optional (a -> b) -> Optional a -> Optional b
-  (<*>) Empty _           = Empty
-  (<*>) _ Empty           = Empty
+  (<*>) Empty _ = Empty
+  (<*>) _ Empty = Empty
   (<*>) (Full f) (Full v) = Full (f v)
+
 -- | Insert into a constant function.
 --
 -- >>> ((+) <*> (+10)) 3
@@ -107,15 +98,11 @@ instance Applicative Optional where
 --
 -- prop> \x y -> pure x y == x
 instance Applicative ((->) t) where
-  pure ::
-    a -> (t -> a)
-  pure =
-    -- \a -> \_ -> a
-    const
-  (<*>) ::
-    (t -> a -> b) -> (t -> a) -> t -> b
-  (<*>) =
-    \t2a2b -> \t2a -> \t -> t2a2b t (t2a t)
+  pure :: a -> (t -> a)
+  -- pure = \a -> \_ -> a
+  pure = const
+  (<*>) :: (t -> a -> b) -> (t -> a) -> t -> b
+  (<*>) t2a2b t2a t = t2a2b t (t2a t)
 
 
 -- | Apply a binary function in the environment.
@@ -137,12 +124,7 @@ instance Applicative ((->) t) where
 --
 -- >>> lift2 (+) length sum (listh [4,5,6])
 -- 18
-lift2 ::
-  Applicative j =>
-  (a -> b -> c)
-  -> j a
-  -> j b
-  -> j c
+lift2 :: Applicative j => (a -> b -> c) -> j a -> j b -> j c
 lift2 a2b2c ja jb = a2b2c <$> ja <*> jb
 
 -- | Apply a ternary function in the environment.
@@ -168,16 +150,8 @@ lift2 a2b2c ja jb = a2b2c <$> ja <*> jb
 --
 -- >>> lift3 (\a b c -> a + b + c) length sum product (listh [4,5,6])
 -- 138
-lift3 ::
-  Applicative j =>
-  (a -> b -> c -> d)
-  -> j a
-  -> j b
-  -> j c
-  -> j d
-lift3 a2b2c2d ja jb jc =
-  -- lift2 a2b2c2d ja jb <*> jc
-  a2b2c2d <$> ja <*> jb <*> jc
+lift3 :: Applicative j => (a -> b -> c -> d) -> j a -> j b -> j c -> j d
+lift3 a2b2c2d ja jb jc = lift2 a2b2c2d ja jb <*> jc
 
 -- | Apply a quaternary function in the environment.
 -- /can be written using `lift3` and `(<*>)`./
@@ -203,22 +177,11 @@ lift3 a2b2c2d ja jb jc =
 -- >>> lift4 (\a b c d -> a + b + c + d) length sum product (sum . filter even) (listh [4,5,6])
 -- 148
 lift4 ::
-  Applicative j =>
-  (a -> b -> c -> d -> e)
-  -> j a
-  -> j b
-  -> j c
-  -> j d
-  -> j e
-lift4 a2b2c2d2e ja jb jc jd =
- -- lift3 a2b2c2d2e ja jb jc <*> jd 
-   a2b2c2d2e <$> ja <*> jb <*> jc <*> jd
+     Applicative j => (a -> b -> c -> d -> e) -> j a -> j b -> j c -> j d -> j e
+lift4 f ja jb jc jd = lift3 f ja jb jc <*> jd
 
 -- | Apply a nullary function in the environment.
-lift0 ::
-  Applicative f =>
-  a
-  -> f a
+lift0 :: Applicative f => a -> f a
 lift0 = pure
 
 -- | Apply a unary function in the environment.
@@ -232,11 +195,7 @@ lift0 = pure
 --
 -- >>> lift1 (+1) (1 :. 2 :. 3 :. Nil)
 -- [2,3,4]
-lift1 ::
-  Applicative f =>
-  (a -> b)
-  -> f a
-  -> f b
+lift1 :: Applicative f => (a -> b) -> f a -> f b
 lift1 = (<$>)
 
 -- | Apply, discarding the value of the first argument.
@@ -257,13 +216,9 @@ lift1 = (<$>)
 -- prop> \a b c x y z -> (a :. b :. c :. Nil) *> (x :. y :. z :. Nil) == (x :. y :. z :. x :. y :. z :. x :. y :. z :. Nil)
 --
 -- prop> \x y -> Full x *> Full y == Full y
-(*>) ::
-  Applicative f =>
-  f a
-  -> f b
-  -> f b
-(*>) =
-  lift2 (const id)
+(*>) :: Applicative f => f a -> f b -> f b
+-- (*>) = lift2 (const id)
+(*>) = lift2 (flip const)
 
 -- | Apply, discarding the value of the second argument.
 -- Pronounced, left apply.
@@ -283,13 +238,8 @@ lift1 = (<$>)
 -- prop> \x y z a b c -> (x :. y :. z :. Nil) <* (a :. b :. c :. Nil) == (x :. x :. x :. y :. y :. y :. z :. z :. z :. Nil)
 --
 -- prop> \x y -> Full x <* Full y == Full x
-(<*) ::
-  Applicative f =>
-  f b
-  -> f a
-  -> f b
-(<*) =
-  lift2 const
+(<*) :: Applicative f => f b -> f a -> f b
+(<*) = lift2 const
 
 -- | Sequences a list of structures to a structure of list.
 --
@@ -307,18 +257,9 @@ lift1 = (<$>)
 --
 -- >>> sequence ((*10) :. (+2) :. Nil) 6
 -- [60,8]
-sequence ::
-  Applicative k =>
-  List (k a)
-  -> k (List a)
-sequence Nil    = pure Nil
-sequence (h:.t) = lift2 (:.) h (sequence t)
-
--- h :: h a
-                    -- t :: List (k a)
--- sequence t :: k (List a)
--- ? :: k (List a)
-
+sequence :: Applicative k => List (k a) -> k (List a)
+sequence Nil = pure Nil
+sequence (h :. t) = lift2 (:.) h (sequence t)
 
 -- | Replicate an effect a given number of times.
 --
@@ -336,13 +277,8 @@ sequence (h:.t) = lift2 (:.) h (sequence t)
 --
 -- >>> replicateA 3 ('a' :. 'b' :. 'c' :. Nil)
 -- ["aaa","aab","aac","aba","abb","abc","aca","acb","acc","baa","bab","bac","bba","bbb","bbc","bca","bcb","bcc","caa","cab","cac","cba","cbb","cbc","cca","ccb","ccc"]
-replicateA ::
-  Applicative f =>
-  Int
-  -> f a
-  -> f (List a)
-replicateA =
-  error "todo: Course.Applicative#replicateA"
+replicateA :: Applicative f => Int -> f a -> f (List a)
+replicateA n fa = sequence (replicate n fa)
 
 -- | Filter a list with a predicate that produces an effect.
 --
@@ -364,13 +300,24 @@ replicateA =
 -- >>> filtering (const $ True :. True :.  Nil) (1 :. 2 :. 3 :. Nil)
 -- [[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]
 --
-filtering ::
-  Applicative f =>
-  (a -> f Bool)
-  -> List a
-  -> f (List a)
-filtering =
-  error "todo: Course.Applicative#filtering"
+filtering :: Applicative f => (a -> f Bool) -> List a -> f (List a)
+filtering f as = filter' <$> sequence (f <$> as) <*> pure as
+
+filter' :: List Bool -> List a -> List a
+filter' Nil _ = Nil
+filter' _ Nil = Nil
+filter' (True :. bs) (a :. as) = a :. filter' bs as
+filter' (False :. bs) (_ :. as) = filter' bs as
+
+-- Better:
+-- filtering p =
+--   foldRight (\a -> lift2 (\b -> if b then (a:.) else id) (p a)) (pure Nil)
+
+
+-- filtering _ Nil = pure Nil
+-- filtering a2fb (h :. t) = case (a2fb h) of
+--     (_ True) -> lift2 (:.) (pure h) (filtering a2fb t)
+--     _ -> filtering a2fb t
 
 -----------------------
 -- SUPPORT LIBRARIES --
